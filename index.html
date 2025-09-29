@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikFinity WebSocket Example</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Vue.js CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+    <style>
+        /* Retain original styles with minor enhancements */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        details {
+            border: 1px solid #8a8a8a;
+            padding: 5px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #1f2937;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="app" class="container mx-auto p-6">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">TikFinity WebSocket Example</h1>
+
+        <div class="mb-4 text-gray-700">
+            Please start the <a href="https://tikfinity.zerody.one/app/" target="_blank" class="text-blue-600 hover:underline">TikFinity Desktop App</a> on this computer and connect to a livestream.
+        </div>
+        <div class="mb-4 text-gray-700">
+            Join the <a href="https://discord.gg/uthtmVdpy8" target="_blank" class="text-blue-600 hover:underline">Discord Community</a> if you need help.
+        </div>
+
+        <div class="mb-4">
+            Status: 
+            <span :class="status === 'Connected' ? 'text-green-600' : status === 'Disconnected' ? 'text-red-600' : 'text-yellow-600'" class="font-semibold">
+                {{ status }}
+            </span>
+        </div>
+
+        <div id="eventLog" class="max-h-96 overflow-y-auto space-y-4">
+            <div v-for="(event, index) in events" :key="index">
+                <details>
+                    <summary>
+                        Event: {{ event.parsedData.event }} 
+                        <span v-if="event.parsedData.data?.uniqueId">(@{{ event.parsedData.data.uniqueId }})</span>
+                    </summary>
+                    <pre>{{ JSON.stringify(event.parsedData, null, 2) }}</pre>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        const app = createApp({
+            data() {
+                return {
+                    status: 'Disconnected',
+                    events: []
+                };
+            },
+            methods: {
+                updateStatus(newStatus) {
+                    this.status = newStatus;
+                },
+                addEvent(eventData) {
+                    this.events.push({ parsedData: eventData }); // Add at bottom like original
+                }
+            }
+        }).mount('#app');
+
+        let websocket = null;
+
+        function connect() {
+            if (websocket) return;
+
+            websocket = new WebSocket("ws://localhost:21213/");
+
+            websocket.onopen = function () {
+                app.updateStatus("Connected");
+            };
+
+            websocket.onclose = function () {
+                app.updateStatus("Disconnected");
+                websocket = null;
+                setTimeout(connect, 1000);
+            };
+
+            websocket.onerror = function () {
+                app.updateStatus("Connection Failed");
+                websocket = null;
+                setTimeout(connect, 1000);
+            };
+
+            websocket.onmessage = function (event) {
+                let parsedData = JSON.parse(event.data);
+                console.log("Data received", parsedData);
+                app.addEvent(parsedData);
+            };
+        }
+
+        window.addEventListener('load', connect);
+    </script>
+</body>
+</html>
